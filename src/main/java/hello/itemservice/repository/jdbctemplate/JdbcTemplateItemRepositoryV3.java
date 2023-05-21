@@ -7,54 +7,47 @@ import hello.itemservice.repository.ItemUpdateDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.util.StringUtils;
 
 import javax.sql.DataSource;
-import java.sql.PreparedStatement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
 /**
- * NameParameterJdbcTemplate
- * SqlParameterSource
- * - BeanPropertySqlParameterSource
- * - MapSqlParameterSource
- * Map
- *
- * BeanPropertyRowMapper
+ * SimpleJdbcInsert
  *
  */
-public class JdbcTemplateItemRepositoryV2 implements ItemRepository {
+public class JdbcTemplateItemRepositoryV3 implements ItemRepository {
 
 //    private final JdbcTemplate template;
     private final NamedParameterJdbcTemplate template;
+    private final SimpleJdbcInsert jdbcInsert;
 
-    public JdbcTemplateItemRepositoryV2(DataSource dataSource) {
+    public JdbcTemplateItemRepositoryV3(DataSource dataSource) {
         this.template = new NamedParameterJdbcTemplate(dataSource);
+        this.jdbcInsert = new SimpleJdbcInsert(dataSource)
+                .withTableName("item")
+                .usingGeneratedKeyColumns("id")
+//                .usingColumns("item_name", "price", "quantity") //생략가능 (SimpleJdbcInsert 생성시점에 item 테이블의 메타 데이터를 조회한다.)
+                ;
+
     }
 
     @Override
     public Item save(Item item) {
         String sql = "insert into item(item_name, price, quantity) " +
-                "values(:itemName, :price, :quantity)";
-
+                "values(:itemname, :price, :quantity)";
         SqlParameterSource param = new BeanPropertySqlParameterSource(item);
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        template.update(sql, param, keyHolder);
-
-        long key = keyHolder.getKey().longValue();
-        item.setId(key);
+        Number key = jdbcInsert.executeAndReturnKey(param);
+        item.setId(key.longValue());
         return item;
     }
 
@@ -76,7 +69,7 @@ public class JdbcTemplateItemRepositoryV2 implements ItemRepository {
     @Override
     public Optional<Item> findById(Long id) {
         String sql = "select id, item_name, price, quantity from item where id=:id";
-        try {가
+        try {
             Map<String, Long> param = Map.of("id", id);
             Item item = template.queryForObject(sql, param, itemRowMapper()); // queryForObject는 결과값이 항상 존재 (없으면 에러)
             return Optional.of(item);
