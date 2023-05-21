@@ -76,7 +76,7 @@ public class JdbcTemplateItemRepositoryV2 implements ItemRepository {
     @Override
     public Optional<Item> findById(Long id) {
         String sql = "select id, item_name, price, quantity from item where id=:id";
-        try {가
+        try {
             Map<String, Long> param = Map.of("id", id);
             Item item = template.queryForObject(sql, param, itemRowMapper()); // queryForObject는 결과값이 항상 존재 (없으면 에러)
             return Optional.of(item);
